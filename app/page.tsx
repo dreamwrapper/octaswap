@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function Home() {
   return (
     <main>
-      <div className='py-5 sm:py-8'>
+      <div className='py-5 sm:py-10 lg:py-16'>
         <div className='max-w-[95%] sm:max-w-[70%] md:max-w-[460.8px] mx-auto'>
           <Tabs defaultValue='sale'>
             <TabsList className='grid w-full grid-cols-2 mb-3'>

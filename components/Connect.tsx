@@ -1,10 +1,11 @@
-import { useConnect } from 'wagmi';
+import { Connector, CreateConnectorFn, useChainId, useConnect, useSwitchChain } from 'wagmi';
 import { Button } from './ui/button';
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from './ui/drawer';
 import Image from 'next/image';
 import { useMediaQuery } from 'react-responsive';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { ComponentPropsWithRef, forwardRef } from 'react';
+import { config } from './Wagmi';
 
 function Connectors() {
   const { connectors, connect } = useConnect();

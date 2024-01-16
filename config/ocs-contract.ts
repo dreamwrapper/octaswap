@@ -1,5 +1,5 @@
-const LBC_ADDRESS = '0x976075ffE31330774834ba200D74De811c8b4706' as `0x${string}`;
-const LBC_ABI = [
+export const OCS_ADDRESS = '0xB17858581D1b8e036894Dc337E8F93Bb88EeFd24';
+export const OCS_ABI = [
   {
     inputs: [
       {
@@ -443,7 +443,3 @@ const LBC_ABI = [
     type: 'function',
   },
 ] as const;
-export const lbcContractConfig = {
-  abi: LBC_ABI,
-  address: LBC_ADDRESS,
-};
