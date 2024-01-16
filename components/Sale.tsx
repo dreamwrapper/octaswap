@@ -17,7 +17,19 @@ import { parseEther } from 'viem';
 
 const DECIMALS_N = 10n ** 18n;
 
-function SaleButton({ enableBonus, burnAmounts, purchaseAmounts }: { enableBonus: boolean; burnAmounts: string; purchaseAmounts: string }) {
+function SaleButton({
+  enableBonus,
+  burnAmounts,
+  onBurn,
+  purchaseAmounts,
+  onPurchase,
+}: {
+  enableBonus: boolean;
+  burnAmounts: string;
+  onBurn: Dispatch<SetStateAction<string>>;
+  purchaseAmounts: string;
+  onPurchase: Dispatch<SetStateAction<string>>;
+}) {
   const lbcBurnAmount = parseEther(burnAmounts, 'wei');
   const octaPurchaseAmount = parseEther(purchaseAmounts, 'wei');
 
@@ -25,6 +37,23 @@ function SaleButton({ enableBonus, burnAmounts, purchaseAmounts }: { enableBonus
   const formattedAddress = address as `0x${string}`;
 
   const isMinPurchase = enableBonus ? (Number(burnAmounts) < 1 ? true : false) : Number(purchaseAmounts) < 1 ? true : false;
+
+  const { data: burnLimit } = useReadContracts({
+    contracts: [
+      {
+        ...saleContractConfig,
+        functionName: 'LBC_MAX_PURCHASE',
+      },
+      {
+        ...saleContractConfig,
+        functionName: 'lbcContributions',
+        args: [formattedAddress],
+      },
+    ],
+  });
+
+  const [LBC_MAX_PURCHASE, lbcContributions] = burnLimit || [];
+  const isLbcContributionsMax = lbcContributions?.result === LBC_MAX_PURCHASE?.result;
 
   const { data: lbcAllowance } = useReadContract({
     ...lbcContractConfig,
@@ -36,8 +65,9 @@ function SaleButton({ enableBonus, burnAmounts, purchaseAmounts }: { enableBonus
     },
   });
 
-  const { data: hash, writeContract, isPending } = useWriteContract();
+  const isLbcAllowance = (lbcAllowance as bigint) < lbcBurnAmount;
 
+  const { data: hash, writeContract, isPending } = useWriteContract();
   const { isLoading } = useWaitForTransactionReceipt({ hash });
 
   const handleOctaPurchase = () => {
@@ -48,6 +78,7 @@ function SaleButton({ enableBonus, burnAmounts, purchaseAmounts }: { enableBonus
       args: [formattedAddress],
       value: octaPurchaseAmount,
     });
+    onPurchase('');
   };
 
   const handleLbcApprove = () => {
@@ -65,9 +96,19 @@ function SaleButton({ enableBonus, burnAmounts, purchaseAmounts }: { enableBonus
       functionName: 'buyTokensWithLbc',
       args: [formattedAddress, lbcBurnAmount],
     });
+    onBurn('');
   };
 
-  return (
+  return enableBonus ? (
+    <Button
+      className='w-full'
+      size='lg'
+      disabled={isMinPurchase || isPending || isLoading || isLbcContributionsMax}
+      onClick={isLbcAllowance ? handleLbcApprove : handleLbcPurchase}
+    >
+      {isLbcAllowance ? (isPending || isLoading ? 'Loading...' : 'Approve') : isLbcContributionsMax ? 'Max burn is reached' : 'Burn LBC'}
+    </Button>
+  ) : (
     <Button
       className='w-full'
       size='lg'
@@ -183,7 +224,7 @@ function SaleDetails() {
     <ul className='list-disc list-inside space-y-1 mt-5'>
       <li>Raised OCTA : {formattedOctaRaised} </li>
       <li>Burned LBC : {formattedLbcRaised} </li>
-      <li>Min Purchase : 28 OCTA</li>
+      <li>Max Burn : 10M LBC</li>
       <li>Max Purchase : 1388 OCTA</li>
       <li>Rate : 0.0068 OCTA = 1 OCS</li>
     </ul>
@@ -214,7 +255,13 @@ export default function Sale({ title, description }: { title: string; descriptio
           purchaseAmounts={purchaseAmounts}
           onPurchaseAmountsChange={setPurchaseAmounts}
         />
-        <SaleButton enableBonus={enableBonus} burnAmounts={burnAmounts} purchaseAmounts={purchaseAmounts} />
+        <SaleButton
+          enableBonus={enableBonus}
+          burnAmounts={burnAmounts}
+          onBurn={setBurnAmounts}
+          purchaseAmounts={purchaseAmounts}
+          onPurchase={setPurchaseAmounts}
+        />
       </CardContent>
     </Card>
   );
