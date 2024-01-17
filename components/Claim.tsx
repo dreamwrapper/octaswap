@@ -9,11 +9,13 @@ import { Switch } from './ui/switch';
 import { useAccount, useReadContract, useReadContracts } from 'wagmi';
 import { ovfContractConfig } from '@/config/ocs-vesting-factory';
 import { OCS_VESTING_ABI } from '@/config/ocs-vesting';
-import { ocsContractConfig } from '@/config/ocs-contract';
+import { OCS_ADDRESS, ocsContractConfig } from '@/config/ocs-contract';
 import { DECIMALS_N } from './Sale';
 import Countdown from 'react-countdown';
 import { getFormattedDate } from '@/lib/getFormattedDate';
 import { lbcMainnetContractConfig } from '@/config/lbc-mainnet-contract';
+import { SALE_ABI, SALE_ADDRESS, saleContractConfig } from '@/config/sale-contract';
+import { parseEther } from 'viem';
 
 function ClaimButton() {
   return (
@@ -44,13 +46,48 @@ function FreeClaim({
     args: [address as `0x${string}`, SNAPSHOT_ID],
   });
 
-  const isEligible = snapshotData !== 0n;
+  const { data: burnLimit } = useReadContracts({
+    contracts: [
+      {
+        ...saleContractConfig,
+        functionName: 'LBC_MAX_PURCHASE',
+      },
+      {
+        ...saleContractConfig,
+        functionName: 'lbcContributions',
+        args: [address as `0x${string}`],
+      },
+    ],
+  });
+
+  const [LBC_MAX_PURCHASE, lbcContributions] = burnLimit || [];
+
+  const isEligible = snapshotData && lbcContributions?.result ? snapshotData > parseEther('750000') : false;
+
+  const isLbcContributionsMax =
+    snapshotData && lbcContributions?.result && LBC_MAX_PURCHASE?.result
+      ? snapshotData >= LBC_MAX_PURCHASE?.result
+        ? lbcContributions?.result === LBC_MAX_PURCHASE.result
+          ? true
+          : false
+        : lbcContributions?.result === snapshotData
+        ? true
+        : false
+      : false;
 
   return (
     <div className='flex items-center gap-x-2'>
-      <Switch id={id} checked={enableFreeClaim} onCheckedChange={onCheckFreeClaim} disabled={!isEligible} />
+      <Switch id={id} checked={enableFreeClaim} onCheckedChange={onCheckFreeClaim} disabled={!isEligible || isLbcContributionsMax} />
       <Label htmlFor={id}>{label}</Label>
-      {isEligible ? <Badge>Eligible</Badge> : <Badge variant='destructive'>Not Eligible</Badge>}
+      {isEligible ? (
+        isLbcContributionsMax ? (
+          <Badge variant='destructive'>LIMIT REACHED</Badge>
+        ) : (
+          <Badge>Eligible</Badge>
+        )
+      ) : (
+        <Badge variant='destructive'>Not Eligible</Badge>
+      )}
     </div>
   );
 }
@@ -64,6 +101,8 @@ function ClaimInfo() {
     functionName: 'getBelongsTo',
     args: [formattedAddress],
   });
+
+  console.log(vestingContract);
 
   const { data: vestedTokens } = useReadContract({
     ...ocsContractConfig,
@@ -83,10 +122,12 @@ function ClaimInfo() {
       {
         ...ovContractConfig,
         functionName: 'released',
+        args: [OCS_ADDRESS],
       },
       {
         ...ovContractConfig,
         functionName: 'releasable',
+        args: [OCS_ADDRESS],
       },
       {
         ...ovContractConfig,
