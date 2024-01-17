@@ -6,6 +6,14 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Dispatch, SetStateAction, useState } from 'react';
 import { Switch } from './ui/switch';
+import { useAccount, useReadContract, useReadContracts } from 'wagmi';
+import { ovfContractConfig } from '@/config/ocs-vesting-factory';
+import { OCS_VESTING_ABI } from '@/config/ocs-vesting';
+import { ocsContractConfig } from '@/config/ocs-contract';
+import { DECIMALS_N } from './Sale';
+import Countdown from 'react-countdown';
+import { getFormattedDate } from '@/lib/getFormattedDate';
+import { lbcMainnetContractConfig } from '@/config/lbc-mainnet-contract';
 
 function ClaimButton() {
   return (
@@ -26,7 +34,17 @@ function FreeClaim({
   enableFreeClaim: boolean;
   onCheckFreeClaim: Dispatch<SetStateAction<boolean>>;
 }) {
-  const isEligible = true;
+  const SNAPSHOT_ID = 1n;
+
+  const { address } = useAccount();
+
+  const { data: snapshotData } = useReadContract({
+    ...lbcMainnetContractConfig,
+    functionName: 'balanceOfAt',
+    args: [address as `0x${string}`, SNAPSHOT_ID],
+  });
+
+  const isEligible = snapshotData !== 0n;
 
   return (
     <div className='flex items-center gap-x-2'>
@@ -38,12 +56,70 @@ function FreeClaim({
 }
 
 function ClaimInfo() {
+  const { address } = useAccount();
+  const formattedAddress = address as `0x${string}`;
+
+  const { data: vestingContract } = useReadContract({
+    ...ovfContractConfig,
+    functionName: 'getBelongsTo',
+    args: [formattedAddress],
+  });
+
+  const { data: vestedTokens } = useReadContract({
+    ...ocsContractConfig,
+    functionName: 'balanceOf',
+    args: [vestingContract as `0x${string}`],
+  });
+
+  const formattedVestedTokens = Number(vestedTokens ? vestedTokens / DECIMALS_N : 0n);
+
+  const ovContractConfig = {
+    abi: OCS_VESTING_ABI,
+    address: vestingContract,
+  };
+
+  const { data: vestingData } = useReadContracts({
+    contracts: [
+      {
+        ...ovContractConfig,
+        functionName: 'released',
+      },
+      {
+        ...ovContractConfig,
+        functionName: 'releasable',
+      },
+      {
+        ...ovContractConfig,
+        functionName: 'start',
+      },
+    ],
+  });
+
+  const [released, releasable, startTimestamp] = vestingData || [];
+  const SIX_MONTHS_IN_MS = 15778476n;
+  const vestingTimestamp = Number(startTimestamp?.result ? startTimestamp.result + SIX_MONTHS_IN_MS : 0n);
+  const vestingDate = getFormattedDate(vestingTimestamp);
+
+  const totalClaimed = Number(released?.result ? released.result / DECIMALS_N : 0n);
+  const claimableTokens = Number(releasable?.result ? releasable.result / DECIMALS_N : 0n);
+
   return (
-    <ul className='list-disc list-inside space-y-1 mt-5'>
-      <li>Vested : 0 OCS</li>
-      <li>Total Claimed : 0 OCS</li>
-      <li>Claimable Tokens : 0 OCS</li>
-    </ul>
+    <div className='mt-5'>
+      <div>
+        <ul className='list-disc list-inside space-y-1 '>
+          <li>
+            Locked : <span className='tabular-nums'> {formattedVestedTokens} </span> OCS
+          </li>
+          <li>
+            Total Claimed : <span className='tabular-nums'> {totalClaimed} </span> OCS
+          </li>
+          <li>
+            Vested Tokens : <span className='tabular-nums'> {claimableTokens} </span> OCS
+          </li>
+          <li>Vesting End Date : {vestingTimestamp ? vestingDate : '00:00:00:00'}</li>
+        </ul>
+      </div>
+    </div>
   );
 }
 

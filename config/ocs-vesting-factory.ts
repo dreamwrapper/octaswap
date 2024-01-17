@@ -1,4 +1,4 @@
-export const OCS_VESTING_FACTORY_ADDRESS = '0x99E4B12AAb5F139346D35D4266B3e24B8FAA9246';
+export const OCS_VESTING_FACTORY_ADDRESS = '0x5C108b863D2178677A01924968db76b59617222f' as `0x${string}`;
 export const OCS_VESTING_FACTORY_ABI = [
   {
     constant: false,
@@ -157,3 +157,7 @@ export const OCS_VESTING_FACTORY_ABI = [
     type: 'function',
   },
 ] as const;
+export const ovfContractConfig = {
+  abi: OCS_VESTING_FACTORY_ABI,
+  address: OCS_VESTING_FACTORY_ADDRESS,
+};

@@ -1,4 +1,4 @@
-const LBC_ADDRESS = '0x976075ffE31330774834ba200D74De811c8b4706' as `0x${string}`;
+const LBC_ADDRESS = '0x75F7a80503eE25f5F1f333464c3F74be655d9A7B' as `0x${string}`;
 const LBC_ABI = [
   {
     inputs: [

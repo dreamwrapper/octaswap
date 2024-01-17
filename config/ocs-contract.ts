@@ -1,4 +1,4 @@
-export const OCS_ADDRESS = '0xB17858581D1b8e036894Dc337E8F93Bb88EeFd24';
+export const OCS_ADDRESS = '0x6dE2680F0FeA866e9BD0138cF4C0BFA7F806a72f' as `0x${string}`;
 export const OCS_ABI = [
   {
     inputs: [
@@ -443,3 +443,7 @@ export const OCS_ABI = [
     type: 'function',
   },
 ] as const;
+export const ocsContractConfig = {
+  abi: OCS_ABI,
+  address: OCS_ADDRESS,
+};

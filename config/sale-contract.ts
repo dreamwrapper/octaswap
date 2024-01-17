@@ -1,4 +1,4 @@
-export const SALE_ADDRESS = '0x2e14519cD3DdF6e862a18B04b3c3c5283c3Fe50b' as `0x${string}`;
+export const SALE_ADDRESS = '0x1b8856c6abeb581fe42adfBaFf4dc987123d4b90' as `0x${string}`;
 export const SALE_ABI = [
   {
     constant: false,
@@ -30,15 +30,6 @@ export const SALE_ABI = [
       },
     ],
     name: 'buyTokensWithLbc',
-    outputs: [],
-    payable: false,
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    constant: false,
-    inputs: [],
-    name: 'renounceOwnership',
     outputs: [],
     payable: false,
     stateMutability: 'nonpayable',
@@ -109,6 +100,15 @@ export const SALE_ABI = [
     ],
     name: 'OwnershipTransferred',
     type: 'event',
+  },
+  {
+    constant: false,
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    payable: false,
+    stateMutability: 'nonpayable',
+    type: 'function',
   },
   {
     anonymous: false,
@@ -314,21 +314,6 @@ export const SALE_ABI = [
   },
   {
     constant: true,
-    inputs: [],
-    name: 'LBC_MIN_PURCHASE',
-    outputs: [
-      {
-        internalType: 'uint256',
-        name: '',
-        type: 'uint256',
-      },
-    ],
-    payable: false,
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    constant: true,
     inputs: [
       {
         internalType: 'address',
@@ -418,21 +403,6 @@ export const SALE_ABI = [
     constant: true,
     inputs: [],
     name: 'MAX_PURCHASE',
-    outputs: [
-      {
-        internalType: 'uint256',
-        name: '',
-        type: 'uint256',
-      },
-    ],
-    payable: false,
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: 'MIN_PURCHASE',
     outputs: [
       {
         internalType: 'uint256',

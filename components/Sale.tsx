@@ -12,10 +12,11 @@ import { Progress } from './ui/progress';
 import { Config, useAccount, useReadContract, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { SALE_ABI, SALE_ADDRESS, saleContractConfig } from '@/config/sale-contract';
 import { lbcContractConfig } from '@/config/lbc-contract';
+import { lbcMainnetContractConfig } from '@/config/lbc-mainnet-contract';
 import { WriteContractMutate } from 'wagmi/query';
 import { parseEther } from 'viem';
 
-const DECIMALS_N = 10n ** 18n;
+export const DECIMALS_N = 10n ** 18n;
 
 function SaleButton({
   enableBonus,
@@ -68,17 +69,19 @@ function SaleButton({
   const isLbcAllowance = (lbcAllowance as bigint) < lbcBurnAmount;
 
   const { data: hash, writeContract, isPending } = useWriteContract();
-  const { isLoading } = useWaitForTransactionReceipt({ hash });
+  const { isLoading, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const handleOctaPurchase = () => {
-    writeContract({
-      abi: SALE_ABI,
-      address: SALE_ADDRESS,
-      functionName: 'buyTokens',
-      args: [formattedAddress],
-      value: octaPurchaseAmount,
-    });
-    onPurchase('');
+    writeContract(
+      {
+        abi: SALE_ABI,
+        address: SALE_ADDRESS,
+        functionName: 'buyTokens',
+        args: [formattedAddress],
+        value: octaPurchaseAmount,
+      },
+      { onSuccess: () => onPurchase('') }
+    );
   };
 
   const handleLbcApprove = () => {
@@ -90,13 +93,15 @@ function SaleButton({
   };
 
   const handleLbcPurchase = () => {
-    writeContract({
-      abi: SALE_ABI,
-      address: SALE_ADDRESS,
-      functionName: 'buyTokensWithLbc',
-      args: [formattedAddress, lbcBurnAmount],
-    });
-    onBurn('');
+    writeContract(
+      {
+        abi: SALE_ABI,
+        address: SALE_ADDRESS,
+        functionName: 'buyTokensWithLbc',
+        args: [formattedAddress, lbcBurnAmount],
+      },
+      { onSuccess: () => onBurn(''), onError: (err) => console.log(err) }
+    );
   };
 
   return enableBonus ? (
@@ -106,7 +111,13 @@ function SaleButton({
       disabled={isMinPurchase || isPending || isLoading || isLbcContributionsMax}
       onClick={isLbcAllowance ? handleLbcApprove : handleLbcPurchase}
     >
-      {isLbcAllowance ? (isPending || isLoading ? 'Loading...' : 'Approve') : isLbcContributionsMax ? 'Max burn is reached' : 'Burn LBC'}
+      {isLbcAllowance
+        ? isPending || isLoading
+          ? 'PLEASE WAIT...'
+          : 'Approve'
+        : isLbcContributionsMax
+        ? 'MAX BURN IS REACHED'
+        : 'Burn LBC'}
     </Button>
   ) : (
     <Button
@@ -115,7 +126,7 @@ function SaleButton({
       disabled={isMinPurchase || isPending || isLoading}
       onClick={enableBonus ? handleLbcPurchase : handleOctaPurchase}
     >
-      <span className='font-bold'>{isPending || isLoading ? 'Loading...' : 'Purchase OCS'}</span>
+      <span className='font-bold'>{isPending || isLoading ? 'PLEASE WAIT...' : 'Purchase OCS'}</span>
     </Button>
   );
 }
@@ -138,9 +149,35 @@ function SaleInput({
   const amounts = enableBonus ? burnAmounts : purchaseAmounts;
   const onChange = enableBonus ? onBurnAmountsChange : onPurchaseAmountsChange;
 
+  const { address } = useAccount();
+  const formattedAddress = address as `0x${string}`;
+
+  const { data: burnLimit } = useReadContracts({
+    contracts: [
+      {
+        ...saleContractConfig,
+        functionName: 'LBC_MAX_PURCHASE',
+      },
+      {
+        ...saleContractConfig,
+        functionName: 'lbcContributions',
+        args: [formattedAddress],
+      },
+    ],
+  });
+
+  const [LBC_MAX_PURCHASE, lbcContributions] = burnLimit || [];
+  const isLbcContributionsMax = lbcContributions?.result === LBC_MAX_PURCHASE?.result;
+
   return (
     <div className='mt-5 mb-3 relative inline-block w-full'>
-      <Input type='text' placeholder={placeholder} value={amounts} onChange={(e) => onChange(e.target.value)} />
+      <Input
+        type='text'
+        placeholder={placeholder}
+        value={amounts}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={enableBonus && isLbcContributionsMax}
+      />
 
       <Image
         src={`/coin-token-logo/${value}-logo.png`}
@@ -164,13 +201,58 @@ function EnableBonus({
   enableBonus: boolean;
   onCheckEnableBonus: Dispatch<SetStateAction<boolean>>;
 }) {
-  const isEligible = true;
+  const SNAPSHOT_ID = 1n;
+
+  const { address } = useAccount();
+
+  const { data: snapshotData } = useReadContract({
+    ...lbcMainnetContractConfig,
+    functionName: 'balanceOfAt',
+    args: [address as `0x${string}`, SNAPSHOT_ID],
+  });
+
+  const { data: burnLimit } = useReadContracts({
+    contracts: [
+      {
+        ...saleContractConfig,
+        functionName: 'LBC_MAX_PURCHASE',
+      },
+      {
+        ...saleContractConfig,
+        functionName: 'lbcContributions',
+        args: [address as `0x${string}`],
+      },
+    ],
+  });
+
+  const [LBC_MAX_PURCHASE, lbcContributions] = burnLimit || [];
+
+  const isEligible = snapshotData && lbcContributions?.result ? snapshotData > parseEther('750000') : false;
+
+  const isLbcContributionsMax =
+    snapshotData && lbcContributions?.result && LBC_MAX_PURCHASE?.result
+      ? snapshotData >= LBC_MAX_PURCHASE?.result
+        ? lbcContributions?.result === LBC_MAX_PURCHASE.result
+          ? true
+          : false
+        : lbcContributions?.result === snapshotData
+        ? true
+        : false
+      : false;
 
   return (
     <div className='flex items-center gap-x-2 mt-5'>
-      <Switch id={id} checked={enableBonus} onCheckedChange={onCheckEnableBonus} disabled={!isEligible} />
+      <Switch id={id} checked={enableBonus} onCheckedChange={onCheckEnableBonus} disabled={!isEligible || isLbcContributionsMax} />
       <Label htmlFor={id}>{label}</Label>
-      {isEligible ? <Badge>Eligible</Badge> : <Badge variant='destructive'>Not Eligible</Badge>}
+      {isEligible ? (
+        isLbcContributionsMax ? (
+          <Badge variant='destructive'>LIMIT REACHED</Badge>
+        ) : (
+          <Badge>Eligible</Badge>
+        )
+      ) : (
+        <Badge variant='destructive'>Not Eligible</Badge>
+      )}
     </div>
   );
 }
@@ -220,11 +302,46 @@ function SaleDetails() {
   const formattedLbcRaised = Number(lbcRaised?.result ? lbcRaised.result / DECIMALS_N : 0n);
   const formattedOctaRaised = Number(octaRaised?.result ? octaRaised.result / DECIMALS_N : 0n);
 
+  const SNAPSHOT_ID = 1n;
+
+  const { address } = useAccount();
+
+  const { data: snapshotData } = useReadContract({
+    ...lbcMainnetContractConfig,
+    functionName: 'balanceOfAt',
+    args: [address as `0x${string}`, SNAPSHOT_ID],
+  });
+
+  const { data: burnLimit } = useReadContracts({
+    contracts: [
+      {
+        ...saleContractConfig,
+        functionName: 'LBC_MAX_PURCHASE',
+      },
+      {
+        ...saleContractConfig,
+        functionName: 'lbcContributions',
+        args: [address as `0x${string}`],
+      },
+    ],
+  });
+
+  const [LBC_MAX_PURCHASE, lbcContributions] = burnLimit || [];
+
+  const isEligible = snapshotData && lbcContributions?.result ? snapshotData > parseEther('750000') : false;
+
+  const lbcMaxBurn =
+    snapshotData && lbcContributions?.result && LBC_MAX_PURCHASE?.result
+      ? snapshotData > LBC_MAX_PURCHASE?.result
+        ? Number(LBC_MAX_PURCHASE.result / DECIMALS_N)
+        : Number(snapshotData - lbcContributions?.result / DECIMALS_N)
+      : 0;
+
   return (
     <ul className='list-disc list-inside space-y-1 mt-5'>
       <li>Raised OCTA : {formattedOctaRaised} </li>
       <li>Burned LBC : {formattedLbcRaised} </li>
-      <li>Max Burn : 10M LBC</li>
+      <li>Max Burn : {isEligible ? lbcMaxBurn : '0'} LBC</li>
       <li>Max Purchase : 1388 OCTA</li>
       <li>Rate : 0.0068 OCTA = 1 OCS</li>
     </ul>

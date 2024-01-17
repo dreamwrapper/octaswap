@@ -1,6 +1,6 @@
 'use client';
 
-import { octaTestnet } from '@/config/chains';
+import { octaSpace } from '@/config/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, createConfig, WagmiProvider } from 'wagmi';
 import { walletConnect } from 'wagmi/connectors';
@@ -9,7 +9,7 @@ const projectId = '5f8ccd61aa262f2019367d2406df4124';
 
 export const config = createConfig({
   ssr: true,
-  chains: [octaTestnet],
+  chains: [octaSpace],
   connectors: [
     walletConnect({
       projectId,
@@ -22,7 +22,7 @@ export const config = createConfig({
     }),
   ],
   transports: {
-    [octaTestnet.id]: http(),
+    [octaSpace.id]: http(),
   },
 });
 
