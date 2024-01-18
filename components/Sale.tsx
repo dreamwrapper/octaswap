@@ -211,11 +211,11 @@ function SaleInput({
         placeholder={placeholder}
         value={amounts}
         onChange={(e) => {
-          if (!Number(e.target.value)) {
-            return;
-          }
+          const inputValue = e.target.value;
 
-          onChange(e.target.value);
+          if (inputValue === '' || !isNaN(Number(inputValue))) {
+            onChange(inputValue);
+          }
         }}
         disabled={(enableBonus && isLbcContributionsMax) || !isSaleOpen}
       />
