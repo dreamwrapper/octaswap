@@ -1,4 +1,4 @@
-export const OCS_VESTING_FACTORY_ADDRESS = '0x87e9E18802d165b4489E8CebC8775F72947690Ff' as `0x${string}`;
+export const OCS_VESTING_FACTORY_ADDRESS = '0x19E8Ac8166b0E2132de3290A91944c9Dc82933bC' as `0x${string}`;
 export const OCS_VESTING_FACTORY_ABI = [
   {
     constant: false,

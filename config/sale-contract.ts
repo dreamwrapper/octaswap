@@ -1,4 +1,4 @@
-export const SALE_ADDRESS = '0xB17858581D1b8e036894Dc337E8F93Bb88EeFd24' as `0x${string}`;
+export const SALE_ADDRESS = '0x349C15203aE8E67Fa819A06E14273Fcb8768D413' as `0x${string}`;
 export const SALE_ABI = [
   {
     constant: false,

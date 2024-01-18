@@ -1,4 +1,4 @@
-export const OCS_ADDRESS = '0x6dE2680F0FeA866e9BD0138cF4C0BFA7F806a72f' as `0x${string}`;
+export const OCS_ADDRESS = '0xfFb6b2e7d567eDdEa5F83f42EFF1E83163E5aa55' as `0x${string}`;
 export const OCS_ABI = [
   {
     inputs: [
