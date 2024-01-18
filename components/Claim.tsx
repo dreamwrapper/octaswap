@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Dispatch, SetStateAction, useState } from 'react';
 import { Switch } from './ui/switch';
-import { useAccount, useReadContract, useReadContracts } from 'wagmi';
+import { useAccount, useReadContract, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { ovfContractConfig } from '@/config/ocs-vesting-factory';
 import { OCS_VESTING_ABI } from '@/config/ocs-vesting';
 import { OCS_ADDRESS, ocsContractConfig } from '@/config/ocs-contract';
@@ -18,9 +18,45 @@ import { SALE_ABI, SALE_ADDRESS, saleContractConfig } from '@/config/sale-contra
 import { parseEther } from 'viem';
 
 function ClaimButton() {
+  const { address } = useAccount();
+
+  const { data: vestingContract } = useReadContract({
+    ...ovfContractConfig,
+    functionName: 'getBelongsTo',
+    args: [address as `0x${string}`],
+  });
+
+  const { data: vestedTokens } = useReadContract({
+    abi: OCS_VESTING_ABI,
+    address: vestingContract,
+    functionName: 'releasable',
+    args: [OCS_ADDRESS],
+  });
+
+  const vested = vestedTokens ?? 0n;
+  const isReleasable = vested > 0n;
+  const releasableTokens = Number(vested / DECIMALS_N);
+
+  const { data: hash, writeContract, isPending } = useWriteContract();
+  const { isLoading } = useWaitForTransactionReceipt({
+    hash,
+  });
+
   return (
-    <Button className='w-full mt-5' size='lg'>
-      <span className='font-bold'>Claim OCS</span>
+    <Button className='w-full mt-5' size='lg' disabled={!isReleasable || isPending || isLoading}>
+      <span
+        className='font-bold'
+        onClick={() =>
+          writeContract({
+            abi: OCS_VESTING_ABI,
+            address: vestingContract as `0x${string}`,
+            functionName: 'release',
+            args: [OCS_ADDRESS],
+          })
+        }
+      >
+        Claim OCS
+      </span>
     </Button>
   );
 }
@@ -39,6 +75,11 @@ function FreeClaim({
   const SNAPSHOT_ID = 1n;
 
   const { address } = useAccount();
+
+  const { data: isSaleOpen } = useReadContract({
+    ...saleContractConfig,
+    functionName: 'isOpen',
+  });
 
   const { data: snapshotData } = useReadContract({
     ...lbcMainnetContractConfig,
@@ -62,22 +103,17 @@ function FreeClaim({
 
   const [LBC_MAX_PURCHASE, lbcContributions] = burnLimit || [];
 
-  const isEligible = snapshotData && lbcContributions?.result ? snapshotData > parseEther('750000') : false;
+  const snapshotBalance = snapshotData ?? 0n;
+  const lbcMaxPurchase = LBC_MAX_PURCHASE?.result ?? 0n;
+  const currentLbcContributions = lbcContributions?.result ?? 0n;
 
+  const isEligible = snapshotData ? snapshotData > parseEther('750000') : false;
   const isLbcContributionsMax =
-    snapshotData && lbcContributions?.result && LBC_MAX_PURCHASE?.result
-      ? snapshotData >= LBC_MAX_PURCHASE?.result
-        ? lbcContributions?.result === LBC_MAX_PURCHASE.result
-          ? true
-          : false
-        : lbcContributions?.result === snapshotData
-        ? true
-        : false
-      : false;
+    snapshotBalance > lbcMaxPurchase ? currentLbcContributions === lbcMaxPurchase : currentLbcContributions === snapshotBalance;
 
   return (
     <div className='flex items-center gap-x-2'>
-      <Switch id={id} checked={enableFreeClaim} onCheckedChange={onCheckFreeClaim} disabled={!isEligible || isLbcContributionsMax} />
+      <Switch id={id} checked={enableFreeClaim} onCheckedChange={onCheckFreeClaim} disabled />
       <Label htmlFor={id}>{label}</Label>
       {isEligible ? (
         isLbcContributionsMax ? (
@@ -101,8 +137,6 @@ function ClaimInfo() {
     functionName: 'getBelongsTo',
     args: [formattedAddress],
   });
-
-  console.log(vestingContract);
 
   const { data: vestedTokens } = useReadContract({
     ...ocsContractConfig,
@@ -134,11 +168,15 @@ function ClaimInfo() {
         functionName: 'start',
       },
     ],
+    query: {
+      refetchInterval: 1000,
+    },
   });
 
   const [released, releasable, startTimestamp] = vestingData || [];
   const SIX_MONTHS_IN_MS = 15778476n;
   const vestingTimestamp = Number(startTimestamp?.result ? startTimestamp.result + SIX_MONTHS_IN_MS : 0n);
+  const vestingStart = getFormattedDate(Number(startTimestamp?.result));
   const vestingDate = getFormattedDate(vestingTimestamp);
 
   const totalClaimed = Number(released?.result ? released.result / DECIMALS_N : 0n);
@@ -157,6 +195,7 @@ function ClaimInfo() {
           <li>
             Vested Tokens : <span className='tabular-nums'> {claimableTokens} </span> OCS
           </li>
+          <li>Vesting Start : {vestingTimestamp ? vestingStart : '00:00:00:00'} </li>
           <li>Vesting End Date : {vestingTimestamp ? vestingDate : '00:00:00:00'}</li>
         </ul>
       </div>
